@@ -5,6 +5,8 @@
 #include <optional>
 #include <unordered_map>
 
+using namespace std;
+
 class LruCache {
 public:
     explicit LruCache(std::size_t capacity)
@@ -14,29 +16,58 @@ public:
 
     void put(int key, int value)
     {
-        // TODO:
-        // 1. Handle capacity == 0.
+        // 1. If capacity == 0 - go away
         // 2. If key already exists, update it and mark it most recently used.
         // 3. Otherwise insert one new entry.
         // 4. Evict the least recently used entry when over capacity.
-        (void)key;
-        (void)value;
+
+		if (capacity_ == 0) {
+			cout << "Zero capacity, go away\n";
+			return;
+		}
+		
+		auto it = by_key_.find(key);
+		if (it == by_key_.end()) {
+			
+			if (entries_.size() == capacity_) {
+				Entry lru = entries_.back();
+				entries_.pop_back();
+				by_key_.erase(lru.key);
+				cout << "Cache is full, evict LRU " << lru.key << endl;
+			}
+			
+			cout << key << " not found, put it in cache as MRU\n";
+			entries_.push_front(Entry(key, value));
+			by_key_[key] = entries_.begin();
+		} 
+		else 
+		{
+			cout << key << " found, update its value and move to MRU\n";
+			entries_.erase(it->second);
+			entries_.push_front(Entry(key, value));
+			by_key_[key] = entries_.begin();
+		}
     }
 
     std::optional<int> get(int key)
     {
-        // TODO:
-        // 1. Find the key in average O(1).
-        // 2. Return std::nullopt when missing.
-        // 3. Mark a found entry as most recently used without copying it.
-        (void)key;
-        return std::nullopt;
+		auto it = by_key_.find(key);
+		if (it == by_key_.end()) {
+			return std::nullopt;
+		}
+		else 
+		{
+			int value = it->second->value;
+			entries_.erase(it->second);
+			entries_.push_front(Entry(key, value));
+			by_key_[key] = entries_.begin();			
+			return value;
+		}
     }
 
     [[nodiscard]] std::size_t size() const noexcept
     {
-        // TODO: Return the number of currently stored entries.
-        return 0;
+        return entries_.size();
     }
 
 private:
@@ -48,7 +79,7 @@ private:
     using RecencyList = std::list<Entry>;
     using EntryIterator = RecencyList::iterator;
 
-    // TODO: Choose and document which end is most recently used.
+    // Front of RecencyList entries_ is most recently used.
     RecencyList entries_;
 
     // Each mapped iterator must always point to the matching live node in entries_.
