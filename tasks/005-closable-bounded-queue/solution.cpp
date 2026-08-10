@@ -12,6 +12,9 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <chrono>
+
+using namespace std::chrono_literals;
 
 template <typename T>
 class BoundedQueue {
@@ -19,50 +22,93 @@ public:
     explicit BoundedQueue(std::size_t capacity)
         : capacity_(capacity)
     {
-        // TODO: Reject capacity == 0 with std::invalid_argument.
+        if (capacity == 0) 
+			throw std::invalid_argument("capacity");
     }
+	
+	~BoundedQueue() 
+	{
+		//std::unique_lock lock(mutex_);
+		//std::condition_variable all_done;
+		//all_done.wait(lock, [this](){return values_.empty() || closed_;});
+		std::cout << "BoundedQueue has been destroyed\n";
+	}
 
     bool push(T value)
     {
-        // TODO:
-        // 1. Lock the mutex.
-        // 2. Wait until space is available or the queue is closed.
-        // 3. Return false without inserting if closed.
-        // 4. Move value into the FIFO container.
-        // 5. Unlock and notify one waiting consumer.
-        (void)value;
-        return false;
+		std::cout << "Enter push" << std::endl;
+		std::unique_lock lock(mutex_);
+		std::cout << "Acquired mutex" << std::endl;
+		if (closed_) {
+			std::cout << "Queue closed, go away";
+			return false;
+		}
+		
+		std::cout << "Wait until there is room in deque" << std::endl;
+		not_full_.wait(lock, [this]() {return (closed_ || values_.size() < capacity_);});
+		
+		if (closed_) {
+			std::cout << "Waking... Queue closed, go away";
+			return false;
+		}
+		
+		std::cout << "There is room, push_back " << value << std::endl;
+		values_.push_back(std::move(value));
+		lock.unlock();
+		not_empty_.notify_one();
+		std::cout << "Push done " << value << std::endl;
+        return true;
     }
 
     std::optional<T> pop()
     {
-        // TODO:
-        // 1. Lock the mutex.
-        // 2. Wait until data is available or the queue is closed.
-        // 3. Return std::nullopt only when closed and empty.
-        // 4. Move the oldest value out and remove it from the queue.
-        // 5. Unlock and notify one waiting producer.
-        return std::nullopt;
+		std::cout << "Enter pop" << std::endl;
+		std::unique_lock lock(mutex_);
+		
+		std::cout << "Wait until there is value to pop in deque" << std::endl;
+		not_empty_.wait(lock, [this](){return !values_.empty() || closed_;});
+		
+		if (values_.empty())
+			return std::nullopt;
+		
+		T t = std::move(values_.front());
+		//std::cout << "There is value, pop front " << t << std::endl;
+		values_.pop_front();
+		
+		lock.unlock();
+        not_full_.notify_one();
+		std::cout << "Pop done " << t << std::endl;
+		
+		return t;
     }
 
     void close()
     {
-        // TODO:
-        // 1. Mark the queue closed while holding the mutex.
-        // 2. Make repeated calls harmless.
-        // 3. Wake all blocked producers and consumers.
+		std::cout << "Enter close" << std::endl;
+		
+		{
+			std::lock_guard lock(mutex_);
+			closed_ = true;
+		}
+		
+		std::cout << "Set close true" << std::endl;
+					
+		not_empty_.notify_all();
+		not_full_.notify_all();
     }
 
     [[nodiscard]] bool isClosed() const
     {
-        // TODO: Read closed_ while synchronized.
-        return false;
+		std::cout << "Enter isClosed" << std::endl;
+        std::lock_guard lock(mutex_);
+        return closed_;
     }
 
     [[nodiscard]] std::size_t size() const
     {
-        // TODO: Read the container size while synchronized.
-        return 0;
+        std::lock_guard lock(mutex_);
+		std::cout << "Current queue size is " << values_.size() << std::endl;
+        return values_.size();
     }
 
 private:
@@ -90,6 +136,7 @@ int main()
     }
 
     {
+		std::cout << "TEST #1\n";
         BoundedQueue<int> queue(2);
 
         assert(queue.size() == 0);
@@ -103,6 +150,7 @@ int main()
     }
 
     {
+		std::cout << "\nTEST #2\n";
         BoundedQueue<int> queue(2);
 
         assert(queue.push(1));
@@ -118,6 +166,7 @@ int main()
     }
 
     {
+		std::cout << "\nTEST #3\n";
         BoundedQueue<std::unique_ptr<int>> queue(1);
 
         assert(queue.push(std::make_unique<int>(42)));
@@ -127,6 +176,7 @@ int main()
     }
 
     {
+		std::cout << "\nTEST #4\n";
         BoundedQueue<int> queue(1);
         assert(queue.push(7));
 
@@ -142,6 +192,7 @@ int main()
     }
 
     {
+		std::cout << "\nTEST #5\n";
         BoundedQueue<int> queue(1);
 
         auto consumer = std::async(std::launch::async, [&queue] {
@@ -155,6 +206,7 @@ int main()
     }
 
     {
+		std::cout << "\nTEST #6\n";
         constexpr int producer_count = 3;
         constexpr int values_per_producer = 100;
         constexpr int expected_total = producer_count * values_per_producer;
@@ -202,5 +254,5 @@ int main()
         }
     }
 
-    std::cout << "All tests passed\n";
+    std::cout << "\nAll tests passed\n";
 }
