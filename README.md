@@ -26,10 +26,7 @@ For every task:
 From the repository root:
 
 ```bash
-g++ -std=c++20 -Wall -Wextra -Wpedantic -Wconversion -g \
-  tasks/001-minimum-subarray/solution.cpp \
-  -o /tmp/cpp-challenge-001
-
+g++ -std=c++20 -Wall -Wextra -Wpedantic -Wconversion -g tasks/001-minimum-subarray/solution.cpp -o /tmp/cpp-challenge-001
 /tmp/cpp-challenge-001
 ```
 

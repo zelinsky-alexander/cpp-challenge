@@ -1,70 +1,237 @@
-#include <algorithm>
 #include <cassert>
+#include <functional>
 #include <iostream>
 #include <optional>
+#include <queue>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
+#include <cassert>
 
-using Dependency = std::pair<std::string, std::string>;
+// Solution: Kahn’s topological-sort algorithm with a min-heap
 
 std::optional<std::vector<std::string>> buildOrder(
     const std::vector<std::string>& targets,
-    const std::vector<Dependency>& dependencies)
+    const std::vector<std::pair<std::string, std::string>>& dependencies)
 {
-    // TODO:
-    // 1. Validate that target names are unique.
-    // 2. Build a directed graph from prerequisite to dependent target.
-    // 3. Reject dependency endpoints that are not known targets.
-    // 4. Ensure duplicate edges are counted only once.
-    // 5. Track each target's in-degree.
-    // 6. Repeatedly select the lexicographically smallest zero-in-degree target.
-    // 7. Return std::nullopt if not every target can be emitted.
-    (void)targets;
-    (void)dependencies;
-    return std::nullopt;
+    // adjacency[prerequisite] contains targets that depend on it.
+    std::unordered_map<std::string, std::unordered_set<std::string>> adjacency;
+
+    // Number of prerequisites that each target still has.
+    std::unordered_map<std::string, std::size_t> in_degree;
+
+    // First build the set of valid targets and detect duplicate names.
+    for (const auto& target : targets) {
+        const auto [it, inserted] = in_degree.emplace(target, 0);
+		//std::cout << 
+        if (!inserted) {
+            return std::nullopt;
+        }
+
+        adjacency.emplace(target, std::unordered_set<std::string>{});
+    }
+
+    // A pair {target, prerequisite} means:
+    //
+    // prerequisite ---> target
+    //
+    // Duplicate edges are ignored by the unordered_set.
+    for (const auto& [target, prerequisite] : dependencies) {
+        if (!in_degree.contains(target) ||
+            !in_degree.contains(prerequisite)) {
+            return std::nullopt;
+        }
+
+        auto& dependents = adjacency[prerequisite];
+
+        const auto [it, inserted] = dependents.insert(target);
+
+        if (inserted) {
+            ++in_degree[target];
+        }
+    }
+
+    // Min-heap: among all currently buildable targets,
+    // always select the lexicographically smallest one.
+    std::priority_queue<
+        std::string,
+        std::vector<std::string>,
+        std::greater<>
+    > ready;
+
+    for (const auto& target : targets) {
+        if (in_degree[target] == 0) {
+            ready.push(target);
+        }
+    }
+
+    std::vector<std::string> result;
+    result.reserve(targets.size());
+
+    while (!ready.empty()) {
+        std::string current = ready.top();
+        ready.pop();
+
+        result.push_back(current);
+
+        for (const auto& dependent : adjacency[current]) {
+            auto& degree = in_degree[dependent];
+
+            --degree;
+
+            if (degree == 0) {
+                ready.push(dependent);
+            }
+        }
+    }
+
+    // If some targets could never become buildable, they belong
+    // to a dependency cycle.
+    if (result.size() != targets.size()) {
+        return std::nullopt;
+    }
+
+    return result;
 }
 
 int main()
 {
-    using Result = std::optional<std::vector<std::string>>;
+    {
+        const std::vector<std::string> targets;
+        const std::vector<std::pair<std::string, std::string>> dependencies;
 
-    assert(buildOrder({}, {}) == Result{std::vector<std::string>{}});
+        const auto result = buildOrder(targets, dependencies);
 
-    assert(buildOrder({"core"}, {}) ==
-           Result{std::vector<std::string>{"core"}});
+        assert(result.has_value());
+        assert(result->empty());
+    }
 
-    assert(buildOrder({"zlib", "app", "core"}, {}) ==
-           Result{std::vector<std::string>{"app", "core", "zlib"}});
+    {
+        const std::vector<std::string> targets{"app"};
+        const std::vector<std::pair<std::string, std::string>> dependencies;
 
-    assert(buildOrder(
-               {"app", "core", "net", "tests"},
-               {{"app", "core"}, {"app", "net"}, {"tests", "core"}}) ==
-           Result{std::vector<std::string>{"core", "net", "app", "tests"}});
+        const auto result = buildOrder(targets, dependencies);
 
-    assert(buildOrder(
-               {"package", "compile", "link", "test"},
-               {{"compile", "package"},
-                {"link", "compile"},
-                {"test", "link"}}) ==
-           Result{std::vector<std::string>{
-               "package", "compile", "link", "test"}});
+        assert(result == std::optional<std::vector<std::string>>{
+            {"app"}
+        });
+    }
 
-    assert(buildOrder(
-               {"app", "core"},
-               {{"app", "core"}, {"app", "core"}}) ==
-           Result{std::vector<std::string>{"core", "app"}});
+    {
+        const std::vector<std::string> targets{"c", "a", "b"};
+        const std::vector<std::pair<std::string, std::string>> dependencies;
 
-    assert(!buildOrder({"app", "app"}, {}).has_value());
-    assert(!buildOrder({"app"}, {{"app", "missing"}}).has_value());
-    assert(!buildOrder({"app"}, {{"missing", "app"}}).has_value());
-    assert(!buildOrder({"app"}, {{"app", "app"}}).has_value());
+        const auto result = buildOrder(targets, dependencies);
 
-    assert(!buildOrder(
-                {"a", "b", "c"},
-                {{"a", "b"}, {"b", "c"}, {"c", "a"}})
-                .has_value());
+        assert((result == std::optional<std::vector<std::string>>{
+			{"a", "b", "c"}
+		}));
+    }
 
-    std::cout << "All assertions passed\n";
-    return 0;
+    {
+        const std::vector<std::string> targets{
+            "app", "core", "net", "tests"
+        };
+
+        const std::vector<std::pair<std::string, std::string>> dependencies{
+            {"app", "core"},
+            {"app", "net"},
+            {"tests", "core"}
+        };
+
+        const auto result = buildOrder(targets, dependencies);
+
+        assert((result == std::optional<std::vector<std::string>>{{"core", "net", "app", "tests"}}));
+    }
+
+    {
+        const std::vector<std::string> targets{
+            "a", "b", "c", "d"
+        };
+
+        const std::vector<std::pair<std::string, std::string>> dependencies{
+            {"b", "a"},
+            {"c", "b"},
+            {"d", "c"}
+        };
+
+        const auto result = buildOrder(targets, dependencies);
+
+        assert((result == std::optional<std::vector<std::string>>{{"a", "b", "c", "d"}}));
+    }
+
+    {
+        // Duplicate targets are invalid.
+        const std::vector<std::string> targets{"a", "b", "a"};
+
+        const auto result = buildOrder(targets, {});
+
+        assert(!result.has_value());
+    }
+
+    {
+        // Duplicate dependency must count only once.
+        const std::vector<std::string> targets{"a", "b"};
+
+        const std::vector<std::pair<std::string, std::string>> dependencies{
+            {"b", "a"},
+            {"b", "a"}
+        };
+
+        const auto result = buildOrder(targets, dependencies);
+
+        assert((result == std::optional<std::vector<std::string>>{{"a", "b"}}));
+    }
+
+    {
+        // Unknown target.
+        const std::vector<std::string> targets{"a", "b"};
+
+        const std::vector<std::pair<std::string, std::string>> dependencies{
+            {"c", "a"}
+        };
+
+        assert(!buildOrder(targets, dependencies).has_value());
+    }
+
+    {
+        // Unknown prerequisite.
+        const std::vector<std::string> targets{"a", "b"};
+
+        const std::vector<std::pair<std::string, std::string>> dependencies{
+            {"b", "x"}
+        };
+
+        assert(!buildOrder(targets, dependencies).has_value());
+    }
+
+    {
+        // Self-cycle.
+        const std::vector<std::string> targets{"a"};
+
+        const std::vector<std::pair<std::string, std::string>> dependencies{
+            {"a", "a"}
+        };
+
+        assert(!buildOrder(targets, dependencies).has_value());
+    }
+
+    {
+        // Longer cycle:
+        //
+        // a -> b -> c -> a
+        const std::vector<std::string> targets{"a", "b", "c"};
+
+        const std::vector<std::pair<std::string, std::string>> dependencies{
+            {"b", "a"},
+            {"c", "b"},
+            {"a", "c"}
+        };
+
+        assert(!buildOrder(targets, dependencies).has_value());
+    }
+
+    std::cout << "All tests passed\n";
 }
