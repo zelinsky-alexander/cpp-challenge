@@ -1,4 +1,4 @@
-# Task 007 — Expiring Key-Value Store
+# Task 012 — Expiring Key-Value Store
 
 ## Goal
 
