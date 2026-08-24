@@ -1,10 +1,21 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <stdexcept>
 
 std::uint64_t fibonacci(std::size_t n)
 {
-    return 0;
+    if (n == 0) return 0;
+    if (n > 93) throw std::overflow_error("Fibonacci value exceeds 64-bit unsigned integer bounds.");
+
+    std::uint64_t a = 0;
+    std::uint64_t b = 1;
+    for (std::size_t i = 1; i < n; ++i) {
+       std::uint64_t tmp = b;
+       b = b + a;
+       a = tmp;
+    }
+    return b;
 }
 
 int main()
