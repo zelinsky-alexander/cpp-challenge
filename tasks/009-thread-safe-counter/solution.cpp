@@ -3,22 +3,26 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <atomic>
 
 class ThreadSafeCounter {
 public:
     void increment()
     {
+       _c.fetch_add(1, std::memory_order_relaxed);
     }
 
     void add(std::int64_t amount)
     {
-        (void)amount;
+        _c.fetch_add(amount, std::memory_order_relaxed);
     }
 
     [[nodiscard]] std::int64_t value() const
     {
-        return 0;
+        return _c.load(std::memory_order_relaxed);
     }
+private:
+    alignas(64) std::atomic<int64_t> _c = {0};
 };
 
 namespace {
