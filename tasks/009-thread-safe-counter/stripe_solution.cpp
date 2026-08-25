@@ -1,3 +1,9 @@
+
+/*
+
+High-Contention Scalability: If high multi-core throughput is required (where hundreds of threads concurrently hit the same counter), CPU cache invalidation can cause a bottleneck on a single std::atomic. In such extreme cases, using thread-local accumulation or a segmented/striped counter strategy (similar to Java's LongAdder) reduces cache line bouncing across L1/L2 caches.
+
+*/
 #include <atomic>
 #include <cstdint>
 #include <numeric>
