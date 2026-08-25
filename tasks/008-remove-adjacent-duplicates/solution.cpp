@@ -1,8 +1,23 @@
 #include <cassert>
 #include <string>
+#include <algorithm>
+
+void removeAdjacentDuplicatesStd(std::string& text)
+{
+    text.erase(std::unique(text.begin(), text.end()), text.end());
+}
+
 
 void removeAdjacentDuplicates(std::string& text)
 {
+   size_t w = 0;
+   size_t sz = text.size();
+   if (sz < 2) return;
+   for (size_t i = 1; i < sz; ++i) {
+       if (text[i] != text[i-1])
+           text[++w] = text[i];
+   }
+   text.resize(w+1);
 }
 
 int main()
