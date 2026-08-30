@@ -4,8 +4,40 @@
 #include <utility>
 #include <vector>
 
+    /*
+    This is a binary min-heap implemented on top of a std::vector
+    A binary heap stores a complete binary tree inside a flat array, using index math instead of pointers:
+    Parent of index i → (i-1)/2
+    Left child of index i → 2i+1
+    Right child of index i → 2i+2
+
+        index:     0       1       2       3   4   5   6
+        tree:      root
+                  /    \
+                 1      2
+                / \    / \
+               3   4  5   6
+
+        Node 0's children are at 1 and 2 → 2*0+1=1, 2*0+2=2.
+        Node 1's children are at 3 and 4 → 2*1+1=3, 2*1+2=4.
+        Node 2's children are at 5 and 6 → 2*2+1=5, 2*2+2=6.
+
+        The pattern 2i+1 / 2i+2 always holds for this layout implemented in siftDown 
+        and it's the mirror of the parent formula (i-1)/2 used in siftUp
+
+        Complexity
+        push: O(log n) — sift up at most tree height.
+        pop: O(log n) — sift down at most tree height.
+        top: O(1).
+    */
+
 class MinHeap {
 public:
+    /* 
+       Push appends value to the end of the vector (bottom of the tree).
+       Calls siftUp to bubble it upward: while it's smaller than its parent, swap with the parent. 
+       Stops when it finds a parent that's smaller, or reaches the root. 
+    */
     void push(int value) {
         _buffer.push_back(value);
         siftUp(_buffer.size() - 1);
@@ -18,6 +50,13 @@ public:
         return _buffer.front();
     }
 
+    /*
+       Removing the root without shifting the whole array would be O(n), so it uses the classic trick:
+       Move the last element into slot 0 (overwriting the old min).
+       Shrink the vector by one (pop_back).
+       Call siftDown(0) to restore heap order: compare the new root to both children, 
+       swap with the smaller child if it violates the heap property, and repeat until it settles into place (or has no children left).
+    */
     void pop() {
         if (_buffer.empty()) {
             throw std::out_of_range("Heap is empty");
@@ -56,6 +95,7 @@ private:
         std::size_t size = _buffer.size();
         while (true) {
             std::size_t smallest = index;
+            // At any position index in the tree-as-array, its two children live at:
             std::size_t left = 2 * index + 1;
             std::size_t right = 2 * index + 2;
 
