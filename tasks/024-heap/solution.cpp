@@ -1,14 +1,79 @@
 #include <cassert>
 #include <cstddef>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 class MinHeap {
 public:
-    void push(int value);
-    int top() const;
-    void pop();
-    bool empty() const noexcept;
-    std::size_t size() const noexcept;
+    void push(int value) {
+        _buffer.push_back(value);
+        siftUp(_buffer.size() - 1);
+    }
+
+    int top() const {
+        if (_buffer.empty()) {
+            throw std::out_of_range("Heap is empty");
+        }
+        return _buffer.front();
+    }
+
+    void pop() {
+        if (_buffer.empty()) {
+            throw std::out_of_range("Heap is empty");
+        }
+        _buffer[0] = _buffer.back();
+        _buffer.pop_back();
+        if (!_buffer.empty()) {
+            siftDown(0);
+        }
+    }
+
+    bool empty() const noexcept {
+        return _buffer.empty();
+    }
+
+    std::size_t size() const noexcept {
+        return _buffer.size();
+    }
+
+private:
+    std::vector<int> _buffer;
+
+    void siftUp(std::size_t index) {
+        while (index > 0) {
+            std::size_t parent = (index - 1) / 2;
+            if (_buffer[index] < _buffer[parent]) {
+                std::swap(_buffer[index], _buffer[parent]);
+                index = parent;
+            } else {
+                break;
+            }
+        }
+    }
+
+    void siftDown(std::size_t index) {
+        std::size_t size = _buffer.size();
+        while (true) {
+            std::size_t smallest = index;
+            std::size_t left = 2 * index + 1;
+            std::size_t right = 2 * index + 2;
+
+            if (left < size && _buffer[left] < _buffer[smallest]) {
+                smallest = left;
+            }
+            if (right < size && _buffer[right] < _buffer[smallest]) {
+                smallest = right;
+            }
+
+            if (smallest != index) {
+                std::swap(_buffer[index], _buffer[smallest]);
+                index = smallest;
+            } else {
+                break;
+            }
+        }
+    }
 };
 
 int main()
