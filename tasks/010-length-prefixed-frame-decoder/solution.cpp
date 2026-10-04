@@ -16,19 +16,45 @@ public:
 
     void append(std::string_view bytes)
     {
-        // TODO: implement.
-        (void)bytes;
+        buffer_.append(bytes);
     }
 
     [[nodiscard]] std::optional<std::string> next_frame()
     {
-        // TODO: implement.
-        return std::nullopt;
+        if (buffer_.size() < 4U) {
+            return std::nullopt;
+        }
+
+        const auto b0 = static_cast<std::uint32_t>(static_cast<unsigned char>(buffer_[0]));
+        const auto b1 = static_cast<std::uint32_t>(static_cast<unsigned char>(buffer_[1]));
+        const auto b2 = static_cast<std::uint32_t>(static_cast<unsigned char>(buffer_[2]));
+        const auto b3 = static_cast<std::uint32_t>(static_cast<unsigned char>(buffer_[3]));
+
+        const std::uint32_t length =
+            (b0 << 24U) |
+            (b1 << 16U) |
+            (b2 << 8U) |
+            b3;
+
+        const auto payload_size = static_cast<std::size_t>(length);
+
+        if (payload_size > max_frame_size_) {
+            throw std::length_error("frame exceeds maximum size");
+        }
+
+        if (buffer_.size() - 4U < payload_size) {
+            return std::nullopt;
+        }
+
+        std::string payload = buffer_.substr(4U, payload_size);
+        buffer_.erase(0U, 4U + payload_size);
+
+        return payload;
     }
 
 private:
     std::size_t max_frame_size_;
-    // TODO: add decoder state.
+    std::string buffer_;
 };
 
 namespace {
