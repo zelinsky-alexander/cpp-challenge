@@ -16,35 +16,39 @@ public:
              std::string value,
              std::uint64_t expires_at)
     {
-        // TODO:
-        // 1. Insert or replace the current entry in entries_.
-        // 2. Give each replacement a new generation value.
-        // 3. Add a corresponding expiration record to expirations_.
-        // 4. Preserve enough metadata to recognize stale heap records later.
-        (void)key;
-        (void)value;
-        (void)expires_at;
+        const std::uint64_t generation = next_generation_++;
+
+        entries_[key] = Entry{
+            std::move(value),
+            expires_at,
+            generation
+        };
+
+        expirations_.push(Expiration{
+            expires_at,
+            generation,
+            std::move(key)
+        });
     }
 
     [[nodiscard]] std::optional<std::string> get(
         std::string_view key,
         std::uint64_t now)
     {
-        // TODO:
-        // 1. Purge all expiration records due at or before now.
-        // 2. Look up key without copying it unnecessarily, if your chosen
-        //    hash-table configuration supports heterogeneous lookup.
-        // 3. Return a value copy only when the current entry is still live.
-        (void)key;
-        (void)now;
-        return std::nullopt;
+        purgeExpired(now);
+
+        const auto it = entries_.find(std::string{key});
+        if (it == entries_.end()) {
+            return std::nullopt;
+        }
+
+        return it->second.value;
     }
 
     [[nodiscard]] std::size_t size(std::uint64_t now)
     {
-        // TODO: purge expired current entries and return the live count.
-        (void)now;
-        return 0U;
+        purgeExpired(now);
+        return entries_.size();
     }
 
 private:
@@ -64,8 +68,6 @@ private:
         [[nodiscard]] bool operator()(const Expiration& lhs,
                                       const Expiration& rhs) const noexcept
         {
-            // A priority_queue places the element considered "largest" at
-            // the top. Reverse timestamp order to model a min-heap.
             if (lhs.expires_at != rhs.expires_at) {
                 return lhs.expires_at > rhs.expires_at;
             }
@@ -75,11 +77,19 @@ private:
 
     void purgeExpired(std::uint64_t now)
     {
-        // TODO:
-        // Repeatedly inspect the earliest expiration record. Remove the map
-        // entry only when the record still describes that entry's current
-        // generation and expiration time. Discard stale records harmlessly.
-        (void)now;
+        while (!expirations_.empty() &&
+               expirations_.top().expires_at <= now) {
+            const Expiration expiration = expirations_.top();
+            expirations_.pop();
+
+            const auto it = entries_.find(expiration.key);
+
+            if (it != entries_.end() &&
+                it->second.generation == expiration.generation &&
+                it->second.expires_at == expiration.expires_at) {
+                entries_.erase(it);
+            }
+        }
     }
 
     std::unordered_map<std::string, Entry> entries_;
