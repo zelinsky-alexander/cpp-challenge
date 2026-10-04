@@ -180,28 +180,19 @@ void test_invalid_target()
 void test_invalid_edge_destination()
 {
     const Graph graph{
-        {{5, 1}}
+        {{5, 1}},
+        {}
     };
 
     bool threw = false;
 
     try {
-        (void)shortest_path(graph, 0, 0);
+        (void)shortest_path(graph, 0, 1);
     } catch (const std::out_of_range&) {
         threw = true;
     }
 
-    assert(!threw);
-
-    threw = false;
-
-    try {
-        (void)shortest_path(graph, 0, 0);
-    } catch (const std::out_of_range&) {
-        threw = true;
-    }
-
-    assert(!threw);
+    assert(threw);
 }
 
 } // namespace
