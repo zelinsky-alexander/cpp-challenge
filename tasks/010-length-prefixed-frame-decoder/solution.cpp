@@ -152,7 +152,7 @@ void test_frame_split_followed_by_second_frame()
     decoder.append(std::string_view{first}.substr(0U, 5U));
     assert(!decoder.next_frame().has_value());
 
-    decoder.append(std::string_view{first}.substr(5U) + second);
+    decoder.append(first.substr(5U) + second);
 
     assert(decoder.next_frame() == std::optional<std::string>{"first"});
     assert(decoder.next_frame() == std::optional<std::string>{"second"});
