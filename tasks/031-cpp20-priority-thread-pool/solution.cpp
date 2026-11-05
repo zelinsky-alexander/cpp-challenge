@@ -1,6 +1,5 @@
 #include <array>
 #include <atomic>
-#include <cassert>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
@@ -147,27 +146,33 @@ private:
 
 // Tests are kept in the same file as other cpp-challenge tasks.
 
+void check(bool ok) {
+    if (!ok) {
+        throw std::runtime_error("thread-pool test failed");
+    }
+}
+
 void test_validation() {
     bool invalid_workers = false;
     try { ThreadPool pool(0, 2); }
     catch (const std::invalid_argument&) { invalid_workers = true; }
-    assert(invalid_workers);
+    check(invalid_workers);
 
     bool invalid_capacity = false;
     try { ThreadPool pool(1, 0); }
     catch (const std::invalid_argument&) { invalid_capacity = true; }
-    assert(invalid_capacity);
+    check(invalid_capacity);
 
     ThreadPool pool(1, 2);
     bool invalid_task = false;
     try { pool.submit(Priority::normal, {}); }
     catch (const std::invalid_argument&) { invalid_task = true; }
-    assert(invalid_task);
+    check(invalid_task);
 
     bool invalid_priority = false;
     try { pool.submit(static_cast<Priority>(99), [](std::stop_token) {}); }
     catch (const std::invalid_argument&) { invalid_priority = true; }
-    assert(invalid_priority);
+    check(invalid_priority);
 }
 
 void test_drain_and_parallel_execution() {
@@ -175,15 +180,15 @@ void test_drain_and_parallel_execution() {
     {
         ThreadPool pool(4, 300);
         for (int i = 0; i < 300; ++i) {
-            assert(pool.submit(Priority::normal, [&](std::stop_token) {
+            check(pool.submit(Priority::normal, [&](std::stop_token) {
                 completed.fetch_add(1, std::memory_order_relaxed);
             }));
         }
         pool.shutdown(true);
-        assert(pool.pending() == 0);
-        assert(!pool.submit(Priority::high, [](std::stop_token) {}));
+        check(pool.pending() == 0);
+        check(!pool.submit(Priority::high, [](std::stop_token) {}));
     }
-    assert(completed.load(std::memory_order_relaxed) == 300);
+    check(completed.load(std::memory_order_relaxed) == 300);
 }
 
 void test_priority_and_fifo() {
@@ -194,18 +199,18 @@ void test_priority_and_fifo() {
     auto gate = release.get_future().share();
     std::vector<int> order;
 
-    assert(pool.submit(Priority::normal, [&](std::stop_token) {
+    check(pool.submit(Priority::normal, [&](std::stop_token) {
         entered.set_value();
         gate.wait();
     }));
     started.wait(); // Keep the only worker occupied while tasks are queued.
-    assert(pool.submit(Priority::low, [&](std::stop_token) { order.push_back(3); }));
-    assert(pool.submit(Priority::high, [&](std::stop_token) { order.push_back(1); }));
-    assert(pool.submit(Priority::normal, [&](std::stop_token) { order.push_back(2); }));
-    assert(pool.pending() == 3);
+    check(pool.submit(Priority::low, [&](std::stop_token) { order.push_back(3); }));
+    check(pool.submit(Priority::high, [&](std::stop_token) { order.push_back(1); }));
+    check(pool.submit(Priority::normal, [&](std::stop_token) { order.push_back(2); }));
+    check(pool.pending() == 3);
     release.set_value();
     pool.shutdown();
-    assert((order == std::vector<int>{1, 2, 3}));
+    check((order == std::vector<int>{1, 2, 3}));
 }
 
 void test_queue_capacity() {
@@ -216,31 +221,31 @@ void test_queue_capacity() {
     auto gate = release.get_future().share();
     std::atomic<int> completed{0};
 
-    assert(pool.submit(Priority::normal, [&](std::stop_token) {
+    check(pool.submit(Priority::normal, [&](std::stop_token) {
         entered.set_value();
         gate.wait();
         ++completed;
     }));
     started.wait();
-    assert(pool.submit(Priority::low, [&](std::stop_token) { ++completed; }));
-    assert(pool.submit(Priority::high, [&](std::stop_token) { ++completed; }));
-    assert(!pool.submit(Priority::high, [&](std::stop_token) { ++completed; }));
-    assert(pool.pending() == 2);
+    check(pool.submit(Priority::low, [&](std::stop_token) { ++completed; }));
+    check(pool.submit(Priority::high, [&](std::stop_token) { ++completed; }));
+    check(!pool.submit(Priority::high, [&](std::stop_token) { ++completed; }));
+    check(pool.pending() == 2);
     release.set_value();
     pool.shutdown();
-    assert(completed == 3);
+    check(completed == 3);
 }
 
 void test_exception_isolation() {
     ThreadPool pool(2, 4);
     std::atomic<int> completed{0};
-    assert(pool.submit(Priority::normal, [](std::stop_token) {
+    check(pool.submit(Priority::normal, [](std::stop_token) {
         throw std::runtime_error("expected test failure");
     }));
-    assert(pool.submit(Priority::normal, [&](std::stop_token) { ++completed; }));
+    check(pool.submit(Priority::normal, [&](std::stop_token) { ++completed; }));
     pool.shutdown();
-    assert(pool.failed_tasks() == 1);
-    assert(completed == 1);
+    check(pool.failed_tasks() == 1);
+    check(completed == 1);
 }
 
 void test_concurrent_producers() {
@@ -263,7 +268,7 @@ void test_concurrent_producers() {
         producer.join();
     }
     pool.shutdown();
-    assert(completed == 1000);
+    check(completed == 1000);
 }
 
 void test_cancel_pending_and_stop_running() {
@@ -273,7 +278,7 @@ void test_cancel_pending_and_stop_running() {
     std::atomic<int> discarded_should_not_run{0};
     std::atomic<bool> observed_stop{false};
 
-    assert(pool.submit(Priority::normal, [&](std::stop_token stop) {
+    check(pool.submit(Priority::normal, [&](std::stop_token stop) {
         entered.set_value();
         while (!stop.stop_requested()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -281,13 +286,13 @@ void test_cancel_pending_and_stop_running() {
         observed_stop = true;
     }));
     started.wait();
-    assert(pool.submit(Priority::low, [&](std::stop_token) {
+    check(pool.submit(Priority::low, [&](std::stop_token) {
         ++discarded_should_not_run;
     }));
     pool.shutdown(false);
-    assert(observed_stop);
-    assert(discarded_should_not_run == 0);
-    assert(pool.pending() == 0);
+    check(observed_stop);
+    check(discarded_should_not_run == 0);
+    check(pool.pending() == 0);
 }
 
 int main() {
