@@ -36,14 +36,14 @@ The implementation exposes:
 
 From the repository root:
 
-    g++ -std=c++20 -Wall -Wextra -Wpedantic -Wconversion -pthread -O2       tasks/031-cpp20-priority-thread-pool/solution.cpp -o /tmp/cpp-challenge-031
+    g++ -std=c++20 -Wall -Wextra -Wpedantic -Wconversion -pthread -O2 tasks/031-cpp20-priority-thread-pool/solution.cpp -o /tmp/cpp-challenge-031
     /tmp/cpp-challenge-031
 
 Optional sanitizers:
 
-    g++ -std=c++20 -Wall -Wextra -Wpedantic -pthread -g       -fsanitize=address,undefined -fno-omit-frame-pointer       tasks/031-cpp20-priority-thread-pool/solution.cpp -o /tmp/cpp-challenge-031-san
+    g++ -std=c++20 -Wall -Wextra -Wpedantic -pthread -g -fsanitize=address,undefined -fno-omit-frame-pointer tasks/031-cpp20-priority-thread-pool/solution.cpp -o /tmp/cpp-challenge-031-san
     /tmp/cpp-challenge-031-san
 
-The self-contained main() in solution.cpp tests invalid arguments, draining, priority ordering, queue capacity, exception isolation, concurrent producers, and cancellation.
+The self-contained main() in solution.cpp runs checks (also active with -DNDEBUG) for invalid arguments, draining, priority ordering, queue capacity, exception isolation, concurrent producers, and cancellation.
 
 Read [explanation.md](explanation.md) after solving or reviewing the implementation.
