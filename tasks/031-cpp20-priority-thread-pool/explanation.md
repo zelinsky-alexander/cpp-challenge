@@ -116,7 +116,7 @@ The main() function in solution.cpp runs these tests:
 6. Check concurrent submission from four producers to eight worker threads.
 7. Verify that cancel-oriented shutdown requests stop of a running task while discarding waiting jobs.
 
-The tests require no framework: they use standard assertions, atomics, futures/promises, and jthreads.
+The tests require no framework: they use explicit runtime checks (including in -DNDEBUG builds), atomics, futures/promises, and jthreads.
 
 ## 9. Performance and future improvements
 
